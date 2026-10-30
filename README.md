@@ -24,16 +24,16 @@ A remote desktop plugin for RetroShare: view and control a friend's screen over 
 sudo apt install libvncserver-dev libx11-dev libxtst-dev
 ```
 
-#### Windows (MSYS2 MinGW64)
-
-```
-pacman -S mingw-w64-x86_64-libvncserver
-```
-
 #### Arch Linux
 
 ```
 sudo pacman -S libvncserver libx11 libxtst
+```
+
+#### Windows (MSYS2 MinGW64)
+
+```
+pacman -S mingw-w64-x86_64-libvncserver
 ```
 
 # Build & install
@@ -59,6 +59,19 @@ cmake --build build
 On Windows add `-G "MinGW Makefiles"` and the import libraries `-DRETROSHARE_CORE_LIBRARY=.../libretroshare/src/lib/libretroshare.dll.a -DRETROSHARE_GUI_LIBRARY=.../retroshare-gui/src/lib/libretroshare-gui.a`. For a Qt 6 RetroShare add `-DDESKTOP_QT_MAJOR=6`.
 
 Copy the built plugin (qmake: `lib/RemoteDesktop.dll`, CMake: `build/libRemoteDesktop.dll`, Linux: `.so`) into RetroShare's plugin folder, keep the LibVNC DLLs next to RetroShare on Windows, then restart RetroShare and enable the plugin in Settings → Plugins.
+
+#### Windows: LibVNC DLLs
+
+The plugin needs `libvncserver.dll` and `libvncclient.dll` from MSYS2. Copy them from `C:\msys64\mingw64\bin` into the folder that contains `retroshare.exe`:
+
+```
+copy C:\msys64\mingw64\bin\libvncserver.dll "C:\path\to\RetroShare\"
+copy C:\msys64\mingw64\bin\libvncclient.dll "C:\path\to\RetroShare\"
+```
+
+If RetroShare still cannot load the plugin, a dependency of LibVNC is missing. 
+List all needed DLLs in the MSYS2 MinGW64 shell with `ldd lib/RemoteDesktop.dll | grep mingw64` and copy the missing ones from the same folder. 
+(Starting RetroShare from the MSYS2 shell hides this, because MSYS2 puts `C:\msys64\mingw64\bin` on the PATH.)
 
 # Usage
 
