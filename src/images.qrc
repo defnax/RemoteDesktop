@@ -1,0 +1,11 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <!-- Plugin's own prefix so the names never collide with RetroShare's :/images -->
+  <qresource prefix="/remotedesktop">
+    <file>images/chat.png</file>
+    <file>images/file-send.png</file>
+    <file>images/refresh.png</file>
+    <file>images/screen-full.png</file>
+    <file>images/screen-normal.png</file>
+  </qresource>
+</RCC>

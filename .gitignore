@@ -1,0 +1,12 @@
+build/
+third_party/
+*.user
+.qmake.stash
+obj/
+moc/
+lib/
+Makefile*
+bin/
+*.dll
+*.so
+*.dylib
