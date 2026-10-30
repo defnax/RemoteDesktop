@@ -71,6 +71,12 @@ QString fileLinkHtml(const QString& name, uint64_t size, const QString& hash) {
                         : size >= 1024 ? QString::number(size/1024.0,'f',1)+" KB" : QString::number(size)+" B";
     return QString("<a href=\"%1\">%2</a> (%3)").arg(href, name.toHtmlEscaped(), human);
 }
+// "Name (Location)" so several profiles/locations of one person can be told apart.
+QString peerLabel(const RsPeerDetails& d) {
+    const QString name=QString::fromUtf8(d.name.c_str());
+    const QString location=QString::fromUtf8(d.location.c_str());
+    return location.isEmpty() ? name : name+" ("+location+")";
+}
 void drawCursor(QImage& image, QScreen* screen) {
     const QRect g = screen->geometry();
     const QPoint local = QCursor::pos(screen) - g.topLeft();
@@ -151,7 +157,9 @@ void SessionPage::refreshPeers() {
     std::list<RsPeerId> ids; peers_->getOnlineList(ids);
     for(const auto& id:ids) if(peers_->isFriend(id)) {
         RsPeerDetails details; peers_->getPeerDetails(id,details);
-        friends_->addItem(QString::fromStdString(details.name)+" ("+QString::fromStdString(id.toStdString()).left(8)+")",QString::fromStdString(id.toStdString()));
+        const QString peerId=QString::fromStdString(id.toStdString());
+        friends_->addItem(peerLabel(details)+" — "+peerId.left(8),peerId);
+        friends_->setItemData(friends_->count()-1,"Peer ID: "+peerId,Qt::ToolTipRole);
     }
     int index=friends_->findData(selected); if(index>=0) friends_->setCurrentIndex(index);
     buttons();
@@ -161,7 +169,7 @@ void SessionPage::request() {
     if(state_!=Idle || friends_->currentIndex()<0) return;
     peer_=RsPeerId(friends_->currentData().toString().toStdString());
     if(!peers_->isFriend(peer_)||!peers_->isOnline(peer_)) { refreshPeers(); return; }
-    RsPeerDetails details; peers_->getPeerDetails(peer_,details); peerName_=QString::fromStdString(details.name);
+    RsPeerDetails details; peers_->getPeerDetails(peer_,details); peerName_=peerLabel(details);
     session_=QUuid::createUuid().toString(QUuid::Id128).toStdString(); state_=Outgoing;
     activity_.restart(); ping_.restart(); send(Message::Request);
     status_->setText("Waiting for "+peerName_+" to accept…"); log("Requested the desktop of "+peerName_); buttons();
@@ -292,7 +300,7 @@ void SessionPage::receive(const DesktopItem& item) {
         }
         peer_=item.PeerId(); session_=item.session; state_=Incoming;
         activity_.restart(); ping_.restart();
-        RsPeerDetails details; peers_->getPeerDetails(peer_,details); peerName_=QString::fromStdString(details.name);
+        RsPeerDetails details; peers_->getPeerDetails(peer_,details); peerName_=peerLabel(details);
         status_->setText(peerName_+" requests your desktop — answer in the pop-up window.");
         log("Desktop request from "+peerName_+" ("+QString::fromStdString(peer_.toStdString())+")");
         dialog_=new AcceptDialog(peerName_,QString::fromStdString(peer_.toStdString()),RequestTimeoutSeconds);

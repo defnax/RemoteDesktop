@@ -23,6 +23,7 @@
 #include <QFileInfo>
 #include <rfb/keysym.h>
 #include <string>
+#include <climits>
 #ifndef Q_OS_WIN
 #include <dlfcn.h>
 #endif
@@ -49,11 +50,26 @@ void NativeInput::setTarget(const QRect& geometry,const QString& device,qreal ra
 }
 #ifdef Q_OS_WIN
 namespace {
-struct MonitorSearch { std::wstring name; RECT rect{}; bool found=false; };
+struct MonitorSearch {
+    std::wstring name;      // Qt 5 device name, e.g. \\.\DISPLAY1 (Qt 6 reports a friendly name instead)
+    QSize pixels;           // captured image size = monitor size in physical pixels
+    QPoint logicalOrigin;   // QScreen::geometry().topLeft()
+    qreal ratio = 1;
+    RECT rect{}; bool found=false;
+    RECT bySize{}; int bySizeScore=INT_MAX; bool foundBySize=false;
+};
 BOOL CALLBACK findMonitor(HMONITOR monitor,HDC,LPRECT,LPARAM data) {
-    auto* search=reinterpret_cast<MonitorSearch*>(data);
+    auto* s=reinterpret_cast<MonitorSearch*>(data);
     MONITORINFOEXW info{}; info.cbSize=sizeof(info);
-    if(GetMonitorInfoW(monitor,&info) && search->name==info.szDevice) { search->rect=info.rcMonitor; search->found=true; return FALSE; }
+    if(!GetMonitorInfoW(monitor,&info)) return TRUE;
+    if(!s->name.empty() && s->name==info.szDevice) { s->rect=info.rcMonitor; s->found=true; return FALSE; }
+    // Otherwise pick the monitor with the captured pixel size whose origin is
+    // closest to Qt's (scaled) origin.
+    const RECT& r=info.rcMonitor;
+    if(qAbs(int(r.right-r.left)-s->pixels.width())<=2 && qAbs(int(r.bottom-r.top)-s->pixels.height())<=2) {
+        const int score=qAbs(int(r.left/s->ratio)-s->logicalOrigin.x())+qAbs(int(r.top/s->ratio)-s->logicalOrigin.y());
+        if(score<s->bySizeScore) { s->bySizeScore=score; s->bySize=r; s->foundBySize=true; }
+    }
     return TRUE;
 }
 }
@@ -80,10 +96,17 @@ void NativeInput::pointer(int x,int y,int mask) {
 #ifdef Q_OS_WIN
     // Map through the monitor's real rectangle and the virtual desktop so that
     // DPI scaling and monitor layout do not shift the pointer.
-    MonitorSearch search; search.name=device_.toStdWString();
+    MonitorSearch search;
+    search.name=device_.toStdWString(); search.pixels=image_; search.logicalOrigin=geometry_.topLeft(); search.ratio=ratio_;
     EnumDisplayMonitors(nullptr,nullptr,findMonitor,reinterpret_cast<LPARAM>(&search));
-    RECT r=search.rect;
-    if(!search.found) { r.left=geometry_.x(); r.top=geometry_.y(); r.right=geometry_.x()+geometry_.width(); r.bottom=geometry_.y()+geometry_.height(); }
+    RECT r{};
+    if(search.found) r=search.rect;
+    else if(search.foundBySize) r=search.bySize;
+    else {
+        // Last resort: Qt geometry converted to physical pixels.
+        r.left=LONG(geometry_.x()*ratio_); r.top=LONG(geometry_.y()*ratio_);
+        r.right=r.left+image_.width(); r.bottom=r.top+image_.height();
+    }
     const double px=r.left+(x+0.5)*(r.right-r.left)/image_.width();
     const double py=r.top+(y+0.5)*(r.bottom-r.top)/image_.height();
     const int vx=GetSystemMetrics(SM_XVIRTUALSCREEN), vy=GetSystemMetrics(SM_YVIRTUALSCREEN);
