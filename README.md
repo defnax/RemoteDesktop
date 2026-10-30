@@ -30,6 +30,12 @@ sudo apt install libvncserver-dev libx11-dev libxtst-dev
 pacman -S mingw-w64-x86_64-libvncserver
 ```
 
+#### Arch Linux
+
+```
+sudo pacman -S libvncserver libx11 libxtst
+```
+
 # Build & install
 
 Clone into the `plugins` folder of your built RetroShare source and build with the same Qt kit as RetroShare:
@@ -52,7 +58,7 @@ cmake --build build
 
 On Windows add `-G "MinGW Makefiles"` and the import libraries `-DRETROSHARE_CORE_LIBRARY=.../libretroshare/src/lib/libretroshare.dll.a -DRETROSHARE_GUI_LIBRARY=.../retroshare-gui/src/lib/libretroshare-gui.a`. For a Qt 6 RetroShare add `-DDESKTOP_QT_MAJOR=6`.
 
-Copy `lib/RemoteDesktop.dll` (CMake: `build/libRemoteDesktop.dll`) (Linux: `libRemoteDesktop.so`) into RetroShare's plugin folder, keep the LibVNC DLLs next to RetroShare on Windows, then restart RetroShare and enable the plugin in Settings → Plugins.
+Copy the built plugin (qmake: `lib/RemoteDesktop.dll`, CMake: `build/libRemoteDesktop.dll`, Linux: `.so`) into RetroShare's plugin folder, keep the LibVNC DLLs next to RetroShare on Windows, then restart RetroShare and enable the plugin in Settings → Plugins.
 
 # Usage
 
